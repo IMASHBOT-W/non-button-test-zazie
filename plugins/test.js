@@ -123,6 +123,9 @@ ${qualities.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})
                     if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= qualitySelectionData.qualities.length) {
                         const selectedQuality = qualitySelectionData.qualities[userSelectedQuality - 1];
 
+                        // Send uploading message
+                        await conn.sendMessage(from, { text: 'Uploading...' }, { quoted: mek2 });
+
                         // Fetch download link
                         const downloadResponse = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
 
@@ -135,7 +138,7 @@ ${qualities.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})
                             document: { url: downloadResponse.data.direct },
                             mimetype: downloadResponse.data.mimeType,
                             fileName: downloadResponse.data.fileName,
-                            caption: `Your movie "${qualitySelectionData.movieTitle}" in ${selectedQuality.quality} is ready!`
+                            caption: `Your movie "${qualitySelectionData.movieTitle}" is ready!`
                         }, { quoted: mek2 });
                     }
                 });
