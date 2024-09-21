@@ -5,7 +5,7 @@ const prabathApi = "6467ad0b29"; // API key
 const api = "https://prabath-md-api.up.railway.app/api/"; // Base API link
 
 cmd({
-    pattern: "sinhala",
+    pattern: "csub",
     alias: ["mv", "moviedl", "mvdl", "cinesub", "cinesubz"],
     desc: "Download movie",
     category: "download",
@@ -104,11 +104,7 @@ ${qualities}
                     footer: "Powered by Cinesubz"
                 }, { quoted: mek });
 
-                // Unique message ID for quality selection
-                const qualityMessage = await conn.sendMessage(from, { text: "Please reply with the number of the quality you want." }, { quoted: mek });
-                const qualityMessageID = qualityMessage.key.id;
-
-                // Listen for quality selection
+                // Directly wait for quality selection from the user
                 conn.ev.on('messages.upsert', async (messageUpdate2) => {
                     const mek2 = messageUpdate2.messages[0];
                     if (!mek2.message) return;
@@ -116,10 +112,10 @@ ${qualities}
                     const qualityResponse = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
                     const userSelectedQuality = parseInt(qualityResponse);
 
-                    const isReplyToQualityMsg = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === qualityMessageID;
+                    const isReplyToMovieDetails = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === sentMsg.key.id;
 
                     // If user selects a valid quality number
-                    if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= desc.dllinks.directDownloadLinks.length) {
+                    if (isReplyToMovieDetails && userSelectedQuality && userSelectedQuality <= desc.dllinks.directDownloadLinks.length) {
                         const selectedQuality = desc.dllinks.directDownloadLinks[userSelectedQuality - 1];
 
                         // Fetch download link
