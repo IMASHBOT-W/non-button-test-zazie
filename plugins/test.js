@@ -30,9 +30,11 @@ cmd({
             if (!mek2.message) return;
             const userSelection = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
 
-            // Check if user selected a movie
-            if (!isNaN(userSelection) && userSelection > 0 && userSelection <= searchResults.data.data.length) {
-                const selectedMovie = searchResults.data.data[userSelection - 1];
+            // Process movie selection
+            const selectedMovieIndex = parseInt(userSelection) - 1;
+            const selectedMovie = searchResults.data.data[selectedMovieIndex];
+
+            if (selectedMovie) {
                 const movieDetails = await fetchJson(`${api}cinemovie?url=${selectedMovie.link}&apikey=${prabathApi}`);
 
                 // Send movie details
@@ -59,9 +61,10 @@ cmd({
                     if (!mek3.message) return;
                     const qualitySelection = mek3.message.conversation || mek3.message.extendedTextMessage?.text;
 
-                    if (!isNaN(qualitySelection) && qualitySelection > 0 && qualitySelection <= movieDetails.data.dllinks.directDownloadLinks.length) {
-                        const selectedQuality = movieDetails.data.dllinks.directDownloadLinks[qualitySelection - 1];
+                    const selectedQualityIndex = parseInt(qualitySelection) - 1;
+                    const selectedQuality = movieDetails.data.dllinks.directDownloadLinks[selectedQualityIndex];
 
+                    if (selectedQuality) {
                         // Notify about uploading
                         await reply("Uploading...");
 
@@ -75,12 +78,8 @@ cmd({
                             fileName: downloadResponse.data.fileName,
                             caption: `Your movie for quality ${selectedQuality.quality} is ready!`
                         });
-                    } else {
-                        await reply("Invalid quality selection. Please type a correct number.");
                     }
                 });
-            } else {
-                await reply("Invalid movie selection. Please type a correct number.");
             }
         });
     } catch (error) {
