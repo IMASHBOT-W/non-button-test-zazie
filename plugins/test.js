@@ -57,10 +57,6 @@ cmd({
             if (isReplyToSentMsg && userSelectedNumber && userSelectedNumber <= allMovies.length) {
                 const selectedMovie = allMovies[userSelectedNumber - 1];
 
-                if (!selectedMovie || !selectedMovie.link) {
-                    return;
-                }
-
                 // Fetch movie details
                 const movieDetailsResponse = await fetchJson(`${api}cinemovie?url=${selectedMovie.link}&apikey=${prabathApi}`);
 
@@ -102,7 +98,7 @@ ${qualities.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})
                 }, { quoted: mek });
 
                 // Store the details for subsequent quality selection
-                let qualitySelectionData = {
+                const qualitySelectionData = {
                     movieTitle,
                     qualities,
                     movieUrl: selectedMovie.link,
@@ -124,7 +120,7 @@ ${qualities.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})
                         const selectedQuality = qualitySelectionData.qualities[userSelectedQuality - 1];
 
                         // Send uploading message
-                        await conn.sendMessage(from, { text: 'Uploading...' }, { quoted: mek2 });
+                        await conn.sendMessage(from, { text: "Uploading your movie..." }, { quoted: mek2 });
 
                         // Fetch download link
                         const downloadResponse = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
@@ -138,7 +134,7 @@ ${qualities.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})
                             document: { url: downloadResponse.data.direct },
                             mimetype: downloadResponse.data.mimeType,
                             fileName: downloadResponse.data.fileName,
-                            caption: `Your movie "${qualitySelectionData.movieTitle}" is ready!`
+                            caption: `Your movie "${qualitySelectionData.movieTitle}" in ${selectedQuality.quality} is ready!`
                         }, { quoted: mek2 });
                     }
                 });
