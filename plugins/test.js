@@ -54,12 +54,13 @@ cmd({
 
             const isReplyToSentMsg = mek.message.extendedTextMessage && mek.message.extendedTextMessage.contextInfo.stanzaId === messageID;
 
+            // If the user selects a valid movie number
             if (isReplyToSentMsg && userSelectedNumber && userSelectedNumber <= allMovies.length) {
                 const selectedMovie = allMovies[userSelectedNumber - 1];
 
                 // Check if selectedMovie and its link exist
                 if (!selectedMovie || !selectedMovie.link) {
-                    return await conn.sendMessage(from, { text: "Invalid movie selection. Please try again." }, { quoted: mek });
+                    return;
                 }
 
                 // Fetch movie details
@@ -67,7 +68,7 @@ cmd({
 
                 // Check if the movie details response is valid
                 if (!movieDetailsResponse || !movieDetailsResponse.data) {
-                    return await conn.sendMessage(from, { text: "Error fetching movie details." }, { quoted: mek });
+                    return;
                 }
 
                 const desc = movieDetailsResponse.data;
@@ -103,6 +104,10 @@ ${qualities}
                     footer: "Powered by Cinesubz"
                 }, { quoted: mek });
 
+                // Unique message ID for quality selection
+                const qualityMessage = await conn.sendMessage(from, { text: "Please reply with the number of the quality you want." }, { quoted: mek });
+                const qualityMessageID = qualityMessage.key.id;
+
                 // Listen for quality selection
                 conn.ev.on('messages.upsert', async (messageUpdate2) => {
                     const mek2 = messageUpdate2.messages[0];
@@ -111,7 +116,7 @@ ${qualities}
                     const qualityResponse = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
                     const userSelectedQuality = parseInt(qualityResponse);
 
-                    const isReplyToQualityMsg = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === messageID;
+                    const isReplyToQualityMsg = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === qualityMessageID;
 
                     // If user selects a valid quality number
                     if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= desc.dllinks.directDownloadLinks.length) {
@@ -121,7 +126,7 @@ ${qualities}
                         const downloadResponse = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
 
                         if (!downloadResponse || !downloadResponse.data || !downloadResponse.data.direct) {
-                            return await conn.sendMessage(from, { text: "Error fetching download link." }, { quoted: mek2 });
+                            return;
                         }
 
                         // Send the movie document
@@ -131,14 +136,8 @@ ${qualities}
                             fileName: downloadResponse.data.fileName,
                             caption: `Your movie for quality ${selectedQuality.quality} is ready!`
                         }, { quoted: mek2 });
-
-                    } else {
-                        // Invalid quality selection
-                        await conn.sendMessage(from, { text: "Invalid quality selection. Please select a correct number." }, { quoted: mek2 });
                     }
                 });
-            } else {
-                return await conn.sendMessage(from, { text: "Invalid selection. Please type a valid number." }, { quoted: mek });
             }
         });
     } catch (e) {
