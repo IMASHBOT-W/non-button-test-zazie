@@ -59,7 +59,7 @@ cmd({
                 const selectedMovie = allMovies[userSelectedNumber - 1];
 
                 if (!selectedMovie || !selectedMovie.link) {
-                    return await conn.sendMessage(from, { text: "Invalid movie selection. Please try again." }, { quoted: mek });
+                    return; // Removed invalid selection message
                 }
 
                 // Fetch movie details
@@ -143,14 +143,8 @@ ${qualities}
 
                         // Clear pending requests
                         delete pendingRequests[from];
-                    } else {
-                        // Handle invalid selection
-                        await conn.sendMessage(from, { text: "Invalid quality selection. Please try again." }, { quoted: mek2 });
                     }
                 });
-            } else {
-                // Handle invalid selection
-                await conn.sendMessage(from, { text: "Invalid movie selection. Please try again." }, { quoted: mek });
             }
         });
     } catch (e) {
