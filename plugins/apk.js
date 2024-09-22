@@ -26,16 +26,24 @@ cmd({
 
         // Get the first APK details
         const firstApp = data.data[0];
-        
-        // Check if the required properties exist
-        if (!firstApp || !firstApp.name || !firstApp.package || !firstApp.lastup || !firstApp.size || !firstApp.icon || !firstApp.dllink) {
-            return reply("❌ APK details are incomplete or missing.");
+
+        // Set default values for properties
+        const name = firstApp.name || "Unknown App";
+        const packageName = firstApp.package || "Unknown Package";
+        const lastUpdate = firstApp.lastup || "Unknown Date";
+        const size = firstApp.size || "Unknown Size";
+        const icon = firstApp.icon || "https://via.placeholder.com/150"; // Placeholder for missing icon
+        const downloadLink = firstApp.dllink || "";
+
+        // If download link is missing, inform the user
+        if (!downloadLink) {
+            return reply("❌ Download link is missing for this APK.");
         }
 
-        const desc = `*Name:* ${firstApp.name}\n*Developer:* ${firstApp.package}\n*Last Update:* ${firstApp.lastup}\n*Size:* ${firstApp.size} MB`;
+        const desc = `*Name:* ${name}\n*Developer:* ${packageName}\n*Last Update:* ${lastUpdate}\n*Size:* ${size} MB`;
         
         // Send APK details with image       
-        await conn.sendMessage(from, { image: { url: firstApp.icon }, caption: desc }, { quoted: mek });
+        await conn.sendMessage(from, { image: { url: icon }, caption: desc }, { quoted: mek });
 
         // Ask user to reply with "1" to download the APK
         const sentMsg = await conn.sendMessage(from, { text: "Reply with *1* to download this APK." }, { quoted: mek });
@@ -54,7 +62,7 @@ cmd({
             const isReplyToSentMsg = mek.message.extendedTextMessage && mek.message.extendedTextMessage.contextInfo.stanzaId === messageID;
             if (isReplyToSentMsg && messageType === "1") {
                 // Send APK download link
-                const sendapk = await conn.sendMessage(from, { document: { url: firstApp.dllink }, mimetype: 'application/vnd.android.package-archive', fileName: firstApp.name + '.apk', caption: "> Qᴜᴇᴇɴ-ᴢᴀᴢɪᴇ-ᴍᴅ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɴʙᴛ" }, { quoted: mek });
+                const sendapk = await conn.sendMessage(from, { document: { url: downloadLink }, mimetype: 'application/vnd.android.package-archive', fileName: name + '.apk', caption: "> Qᴜᴇᴇɴ-ᴢᴀᴢɪᴇ-ᴍᴅ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ɴʙᴛ" }, { quoted: mek });
                 return await conn.sendMessage(from, { react: { text: '🗃️', key: sendapk.key } });
             }
         });
