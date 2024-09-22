@@ -14,21 +14,21 @@ cmd({
 }, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q }) => {
     try {
         if (!q) {
-            return await conn.reply(from, "Please provide the name of the movie.", mek);
+            return await conn.sendMessage(from, { text: "Please provide the name of the movie." }, { quoted: mek });
         }
 
         // Search for movies
         let searchResult = await fetchJson(`${api}cinesearch?q=${q}&apikey=${prabathApi}`);
         
-        // Check if searchResult.data.movies is an array
+        // Check if searchResult.data is an array
         if (!Array.isArray(searchResult.data) || searchResult.data.length === 0) {
-            return await conn.reply(from, "No movies found.", mek);
+            return await conn.sendMessage(from, { text: "No movies found." }, { quoted: mek });
         }
 
         // Display movies
         const allMovies = searchResult.data.map((app, index) => `*${index + 1}.* 🎬 ${app.title}`).join('\n');
         const message = `*Cinesubz Movie SEARCH*\n____________________________\n\n*Movies Found:*\n\n${allMovies}\n\nPlease reply with the number of the movie you want.`;
-        await conn.reply(from, message, mek);
+        await conn.sendMessage(from, { text: message }, { quoted: mek });
 
         // Wait for user's response
         conn.ev.on('messages.upsert', async (messageUpdate) => {
@@ -84,7 +84,7 @@ Please reply with the quality number you want.
                     const selectedQuality = movieDetails.dllinks.directDownloadLinks[qualityIndex];
 
                     if (!selectedQuality) {
-                        return await conn.reply(sender, "Please select a valid quality number.", qualityMek);
+                        return await conn.sendMessage(sender, { text: "Please select a valid quality number." }, { quoted: qualityMek });
                     }
 
                     // Set "downloading" reaction
@@ -111,6 +111,6 @@ Please reply with the quality number you want.
         });
     } catch (error) {
         console.error(error);
-        await conn.reply(from, "An error occurred. Please try again.", mek);
+        await conn.sendMessage(from, { text: "An error occurred. Please try again." }, { quoted: mek });
     }
 });
