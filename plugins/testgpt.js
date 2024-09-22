@@ -39,12 +39,19 @@ cmd({
         // Store movie list in pendingRequests to use later
         pendingRequests[from] = { allMovies, messageID };
 
+        // Log for debugging purposes
+        console.log("Stored pendingRequests: ", pendingRequests[from]);
+
+        // Listen for the user's selection of movie number
         conn.ev.on('messages.upsert', async (messageUpdate) => {
             const mek = messageUpdate.messages[0];
             if (!mek.message) return;
 
             const userResponse = mek.message.conversation || mek.message.extendedTextMessage?.text;
             const userSelectedNumber = parseInt(userResponse);
+
+            // Debugging log
+            console.log("User selected movie number: ", userSelectedNumber);
 
             const isReplyToSentMsg = mek.message.extendedTextMessage && mek.message.extendedTextMessage.contextInfo.stanzaId === messageID;
 
@@ -90,6 +97,9 @@ ${qualities}
                 pendingRequests[from].selectedMovie = selectedMovie;
                 pendingRequests[from].qualityLinks = desc.dllinks.directDownloadLinks;
 
+                // Debugging log
+                console.log("Stored selected movie and qualities: ", pendingRequests[from]);
+
                 const qualityMessage = `Please reply with the number of the quality you want.`;
                 await conn.sendMessage(from, { text: qualityMessage }, { quoted: mek });
 
@@ -101,7 +111,11 @@ ${qualities}
                     const qualityResponse = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
                     const userSelectedQuality = parseInt(qualityResponse);
 
+                    // Ensure the user is replying to the quality message
                     const isReplyToQualityMsg = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === messageID;
+
+                    // Debugging log
+                    console.log("User selected quality: ", userSelectedQuality);
 
                     if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= pendingRequests[from].qualityLinks.length) {
                         const selectedQuality = pendingRequests[from].qualityLinks[userSelectedQuality - 1];
@@ -129,8 +143,14 @@ ${qualities}
 
                         // Clear pending requests
                         delete pendingRequests[from];
+                    } else {
+                        // Handle invalid selection
+                        await conn.sendMessage(from, { text: "Invalid quality selection. Please try again." }, { quoted: mek2 });
                     }
                 });
+            } else {
+                // Handle invalid selection
+                await conn.sendMessage(from, { text: "Invalid movie selection. Please try again." }, { quoted: mek });
             }
         });
     } catch (e) {
