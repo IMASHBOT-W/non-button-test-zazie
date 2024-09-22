@@ -37,7 +37,7 @@ cmd({
             const sender = mek.key.participant || mek.key.remoteJid;
 
             // Check if the response is valid
-            if (userResponse.startsWith('1') || userResponse.startsWith('2') || userResponse.startsWith('3')) {
+            if (!isNaN(userResponse)) {
                 const selectedMovieIndex = parseInt(userResponse) - 1;
                 const selectedMovie = searchResult.data[selectedMovieIndex];
 
@@ -62,7 +62,12 @@ ${qualityOptions}
 
 Please reply with the quality number you want.
                 `;
-                await conn.reply(sender, detailMessage, mek);
+
+                // Send the image with movie details
+                await conn.sendMessage(sender, {
+                    image: { url: movieDetails.mainDetails.imageUrl },
+                    caption: detailMessage
+                });
 
                 // Wait for quality selection
                 conn.ev.on('messages.upsert', async (qualityUpdate) => {
