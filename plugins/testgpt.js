@@ -1,145 +1,100 @@
 const { cmd } = require('../command');
 const config = require('../config');
-const { fetchJson } = require('../lib/functions');
+const { fetchJson, sleep } = require('../lib/functions');
 const prabathApi = "6467ad0b29"; // API key
 const api = "https://prabath-md-api.up.railway.app/api/"; // Base API link
 
 cmd({
     pattern: "csub",
     alias: ["mv", "moviedl", "mvdl", "cinesub", "cinesubz"],
-    desc: "Download movie",
+    desc: "movie",
     category: "download",
     react: "🎬",
     filename: __filename
-}, async (conn, mek, m, { from, quoted, body, q }) => {
+}, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q }) => {
     try {
         if (!q) {
-            return await conn.sendMessage(from, { text: "Please provide the name of the movie." }, { quoted: mek });
+            return await conn.reply(from, "Please provide the name of the movie.", mek);
         }
 
-        // Fetch movie search results
-        const response = await fetchJson(`${api}cinesearch?q=${q}&apikey=${prabathApi}`);
-
-        if (!response || !response.data || !response.data.data) {
-            return await conn.sendMessage(from, { text: "No movies found or invalid response from the server." }, { quoted: mek });
+        // Search for movies
+        let searchResult = await fetchJson(`${api}cinesearch?q=${q}&apikey=${prabathApi}`);
+        if (!searchResult.data || searchResult.data.length === 0) {
+            return await conn.reply(from, "No movies found.", mek);
         }
 
-        const allMovies = response.data.data;
+        // Display movies
+        const allMovies = searchResult.data.map((app, index) => `*${index + 1}.* 🎬 ${app.title}`).join('\n');
+        const message = `*Cinesubz Movie SEARCH*\n____________________________\n\n*Movies Found:*\n\n${allMovies}\n\nPlease reply with the number of the movie you want.`;
+        const searchMsg = await conn.reply(from, message, mek);
 
-        if (!allMovies.length) {
-            return await conn.sendMessage(from, { text: "No movies found." }, { quoted: mek });
-        }
-
-        const movieList = allMovies.map((app, index) => {
-            return `*${index + 1}.* 🎬 ${app.title}`;
-        }).join("\n");
-
-        const message = `*Cinesubz Movie SEARCH*\n` +
-                        `____________________________\n\n` +
-                        `*Movies Found:*\n\n` +
-                        `${movieList}\n\n` +
-                        `Please reply with the number of the movie you want.`;
-
-        const sentMsg = await conn.sendMessage(from, { text: message }, { quoted: mek });
-        const messageID = sentMsg.key.id;
-
-        // Listen for the user's response to select a movie
+        // Wait for user's response
         conn.ev.on('messages.upsert', async (messageUpdate) => {
             const mek = messageUpdate.messages[0];
             if (!mek.message) return;
 
             const userResponse = mek.message.conversation || mek.message.extendedTextMessage?.text;
-            const userSelectedNumber = parseInt(userResponse);
+            const sender = mek.key.participant || mek.key.remoteJid;
 
-            const isReplyToSentMsg = mek.message.extendedTextMessage && mek.message.extendedTextMessage.contextInfo.stanzaId === messageID;
+            // Check if the response is valid
+            if (userResponse.startsWith('1') || userResponse.startsWith('2') || userResponse.startsWith('3')) {
+                const selectedMovieIndex = parseInt(userResponse) - 1;
+                const selectedMovie = searchResult.data[selectedMovieIndex];
 
-            if (isReplyToSentMsg && userSelectedNumber && userSelectedNumber <= allMovies.length) {
-                const selectedMovie = allMovies[userSelectedNumber - 1];
+                // Get movie details
+                let details = await fetchJson(`${api}cinemovie?url=${selectedMovie.link}&apikey=${prabathApi}`);
+                let movieDetails = details.data;
+                const qualityOptions = movieDetails.dllinks.directDownloadLinks.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})`).join("\n");
 
-                if (!selectedMovie || !selectedMovie.link) {
-                    return;
-                }
-
-                // Fetch movie details
-                const movieDetailsResponse = await fetchJson(`${api}cinemovie?url=${selectedMovie.link}&apikey=${prabathApi}`);
-
-                if (!movieDetailsResponse || !movieDetailsResponse.data) {
-                    return;
-                }
-
-                const desc = movieDetailsResponse.data;
-
-                let movieTitle = desc.mainDetails.maintitle || "N/A";
-                let releaseDate = desc.mainDetails.dateCreated || "N/A";
-                let directorName = desc.moviedata.director || "N/A";
-                let country = desc.mainDetails.country || "N/A";
-                let duration = desc.mainDetails.runtime || "N/A";
-                let imdbRating = desc.moviedata.imdbRating || "N/A";
-                let qualities = desc.dllinks.directDownloadLinks.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})`).join("\n");
-                let imageUrl = desc.mainDetails.imageUrl;
-
-                let detailMessage = `
+                const detailMessage = `
 🌟 *Movie Details* 🌟
 =========================
-*Title:* ${movieTitle}
-*Release Date:* ${releaseDate}
-*Director:* ${directorName}
-*Country:* ${country}
-*Duration:* ${duration}
-*IMDB Rating:* ${imdbRating}
+*Title:* ${movieDetails.mainDetails.maintitle}
+*Release Date:* ${movieDetails.mainDetails.dateCreated}
+*Director:* ${movieDetails.moviedata.director}
+*Country:* ${movieDetails.mainDetails.country}
+*Duration:* ${movieDetails.mainDetails.runtime}
+*IMDB Rating:* ${movieDetails.moviedata.imdbRating}
 
-*Available Qualities:* 
+*Available Qualities:*
 =========================
-${qualities}
-`;
+${qualityOptions}
 
-                // Send the image with the movie details as the caption
-                await conn.sendMessage(from, {
-                    image: { url: imageUrl },
-                    caption: detailMessage,
-                    footer: "Powered by Cinesubz"
-                }, { quoted: mek });
+Please reply with the quality number you want.
+                `;
+                await conn.reply(sender, detailMessage, mek);
 
                 // Wait for quality selection
-                conn.ev.on('messages.upsert', async (messageUpdate2) => {
-                    const mek2 = messageUpdate2.messages[0];
-                    if (!mek2.message) return;
+                conn.ev.on('messages.upsert', async (qualityUpdate) => {
+                    const qualityMek = qualityUpdate.messages[0];
+                    const qualityResponse = qualityMek.message.conversation || qualityMek.message.extendedTextMessage?.text;
 
-                    const qualityResponse = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
-                    const userSelectedQuality = parseInt(qualityResponse);
+                    // Check quality selection
+                    const qualityIndex = parseInt(qualityResponse) - 1;
+                    const selectedQuality = movieDetails.dllinks.directDownloadLinks[qualityIndex];
 
-                    const isReplyToQualityMsg = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === sentMsg.key.id;
-
-                    // If user selects a valid quality number
-                    if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= desc.dllinks.directDownloadLinks.length) {
-                        const selectedQuality = desc.dllinks.directDownloadLinks[userSelectedQuality - 1];
-
-                        // Fetch download link
-                        const downloadResponse = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
-
-                        if (!downloadResponse || !downloadResponse.data || !downloadResponse.data.direct) {
-                            return;
-                        }
-
-                        // Send the uploading message
-                        const uploadingMessage = await conn.sendMessage(from, { text: "Uploading..." }, { quoted: mek2 });
-
-                        // Send the movie document
-                        await conn.sendMessage(from, {
-                            document: { url: downloadResponse.data.direct },
-                            mimetype: downloadResponse.data.mimeType,
-                            fileName: downloadResponse.data.fileName,
-                            caption: `Your movie "${movieTitle}" for quality ${selectedQuality.quality} is ready!`
-                        }, { quoted: mek2 });
-
-                        // Set reaction after sending the document
-                        await conn.sendMessage(from, { react: { text: '✅', key: uploadingMessage.key } });
+                    if (!selectedQuality) {
+                        return await conn.reply(sender, "Please select a valid quality number.", qualityMek);
                     }
+
+                    // Send uploading message
+                    await conn.reply(sender, "Uploading your movie...", qualityMek);
+
+                    // Fetch download link
+                    const downloadLink = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
+
+                    // Send the document
+                    await conn.sendMessage(sender, {
+                        document: { url: downloadLink.data.direct },
+                        mimetype: downloadLink.data.mimeType,
+                        fileName: downloadLink.data.fileName,
+                        caption: `Your movie "${movieDetails.mainDetails.maintitle}" in quality ${selectedQuality.quality} is ready!`
+                    });
                 });
             }
         });
-    } catch (e) {
-        console.log("Error: ", e.message);
-        return await conn.sendMessage(from, { text: `An error occurred: ${e.message}` }, { quoted: mek });
+    } catch (error) {
+        console.error(error);
+        await conn.reply(from, "An error occurred. Please try again.", mek);
     }
 });
