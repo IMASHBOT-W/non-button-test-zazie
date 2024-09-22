@@ -78,52 +78,63 @@ cmd({
 =========================
 ${qualities}
 `;
-// Inside the existing message handler for movie details
-await conn.sendMessage(from, {
-    image: { url: desc.mainDetails.imageUrl },
-    caption: detailMessage,
-    footer: "Powered by Cinesubz"
-}, { quoted: mek });
 
-pendingRequests[from].selectedMovie = selectedMovie;
-pendingRequests[from].qualityLinks = desc.dllinks.directDownloadLinks;
+                // Send movie details with available quality options
+                await conn.sendMessage(from, {
+                    image: { url: desc.mainDetails.imageUrl },
+                    caption: detailMessage,
+                    footer: "Powered by Cinesubz"
+                }, { quoted: mek });
 
-const qualityMessage = `Please reply with the number of the quality you want.`;
-await conn.sendMessage(from, { text: qualityMessage }, { quoted: mek });
+                // Store selected movie and quality links in pendingRequests
+                pendingRequests[from].selectedMovie = selectedMovie;
+                pendingRequests[from].qualityLinks = desc.dllinks.directDownloadLinks;
 
-// Listen for the user's response for the quality number
-conn.ev.on('messages.upsert', async (messageUpdate2) => {
-    const mek2 = messageUpdate2.messages[0];
-    if (!mek2.message) return;
+                const qualityMessage = `Please reply with the number of the quality you want.`;
+                await conn.sendMessage(from, { text: qualityMessage }, { quoted: mek });
 
-    const qualityResponse = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
-    const userSelectedQuality = parseInt(qualityResponse);
+                // Listen for the user to select a quality
+                conn.ev.on('messages.upsert', async (messageUpdate2) => {
+                    const mek2 = messageUpdate2.messages[0];
+                    if (!mek2.message) return;
 
-    if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= pendingRequests[from].qualityLinks.length) {
-        const selectedQuality = pendingRequests[from].qualityLinks[userSelectedQuality - 1];
+                    const qualityResponse = mek2.message.conversation || mek2.message.extendedTextMessage?.text;
+                    const userSelectedQuality = parseInt(qualityResponse);
 
-        // Add "Uploading..." reaction
-        await conn.sendMessage(from, { react: { text: '🔄', key: mek2.key } });
+                    const isReplyToQualityMsg = mek2.message.extendedTextMessage && mek2.message.extendedTextMessage.contextInfo.stanzaId === messageID;
 
-        // Fetch the download link for the selected quality
-        const downloadResponse = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
+                    if (isReplyToQualityMsg && userSelectedQuality && userSelectedQuality <= pendingRequests[from].qualityLinks.length) {
+                        const selectedQuality = pendingRequests[from].qualityLinks[userSelectedQuality - 1];
 
-        if (!downloadResponse || !downloadResponse.data || !downloadResponse.data.direct) {
-            return await conn.sendMessage(from, { text: "Error fetching download link." }, { quoted: mek2 });
-        }
+                        // Set "Uploading" reaction
+                        await conn.sendMessage(from, { react: { text: '🔄', key: mek2.key } });
 
-        // Send the movie as a document based on the selected quality
-        await conn.sendMessage(from, {
-            document: { url: downloadResponse.data.direct },
-            mimetype: downloadResponse.data.mimeType,
-            fileName: downloadResponse.data.fileName,
-            caption: `Your movie "${pendingRequests[from].selectedMovie.title}" in quality ${selectedQuality.quality} is ready!`
-        }, { quoted: mek2 });
+                        // Fetch download link for the selected quality
+                        const downloadResponse = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
 
-        // Set "Successful" reaction after sending the document
-        await conn.sendMessage(from, { react: { text: '✅', key: mek2.key } });
+                        if (!downloadResponse || !downloadResponse.data || !downloadResponse.data.direct) {
+                            return await conn.sendMessage(from, { text: "Error fetching download link." }, { quoted: mek2 });
+                        }
 
-        // Clear pending requests
-        delete pendingRequests[from];
+                        // Send the movie document based on selected quality
+                        await conn.sendMessage(from, {
+                            document: { url: downloadResponse.data.direct },
+                            mimetype: downloadResponse.data.mimeType,
+                            fileName: downloadResponse.data.fileName,
+                            caption: `Your movie "${pendingRequests[from].selectedMovie.title}" in quality ${selectedQuality.quality} is ready!`
+                        }, { quoted: mek2 });
+
+                        // Set "Successful" reaction after sending the document
+                        await conn.sendMessage(from, { react: { text: '✅', key: mek2.key } });
+
+                        // Clear pending requests
+                        delete pendingRequests[from];
+                    }
+                });
+            }
+        });
+    } catch (e) {
+        console.log("Error: ", e.message);
+        return await conn.sendMessage(from, { text: `An error occurred: ${e.message}` }, { quoted: mek });
     }
 });
