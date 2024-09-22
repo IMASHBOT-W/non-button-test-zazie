@@ -1,6 +1,6 @@
 const { cmd } = require('../command');
 const config = require('../config');
-const { fetchJson, sleep } = require('../lib/functions');
+const { fetchJson } = require('../lib/functions');
 const prabathApi = "6467ad0b29"; // API key
 const api = "https://prabath-md-api.up.railway.app/api/"; // Base API link
 
@@ -19,14 +19,16 @@ cmd({
 
         // Search for movies
         let searchResult = await fetchJson(`${api}cinesearch?q=${q}&apikey=${prabathApi}`);
-        if (!searchResult.data || searchResult.data.length === 0) {
+        
+        // Check if searchResult.data.movies is an array
+        if (!Array.isArray(searchResult.data) || searchResult.data.length === 0) {
             return await conn.reply(from, "No movies found.", mek);
         }
 
         // Display movies
         const allMovies = searchResult.data.map((app, index) => `*${index + 1}.* 🎬 ${app.title}`).join('\n');
         const message = `*Cinesubz Movie SEARCH*\n____________________________\n\n*Movies Found:*\n\n${allMovies}\n\nPlease reply with the number of the movie you want.`;
-        const searchMsg = await conn.reply(from, message, mek);
+        await conn.reply(from, message, mek);
 
         // Wait for user's response
         conn.ev.on('messages.upsert', async (messageUpdate) => {
@@ -44,8 +46,11 @@ cmd({
                 // Get movie details
                 let details = await fetchJson(`${api}cinemovie?url=${selectedMovie.link}&apikey=${prabathApi}`);
                 let movieDetails = details.data;
+
+                // Prepare quality options
                 const qualityOptions = movieDetails.dllinks.directDownloadLinks.map((link, index) => `> ${index + 1}. ${link.quality} (${link.size})`).join("\n");
 
+                // Movie details message
                 const detailMessage = `
 🌟 *Movie Details* 🌟
 =========================
@@ -82,11 +87,14 @@ Please reply with the quality number you want.
                         return await conn.reply(sender, "Please select a valid quality number.", qualityMek);
                     }
 
-                    // Send uploading message
-                    await conn.reply(sender, "Uploading your movie...", qualityMek);
+                    // Set "downloading" reaction
+                    await conn.sendMessage(sender, { react: { text: '⬇️', key: qualityMek.key } });
 
                     // Fetch download link
                     const downloadLink = await fetchJson(`${api}cinedownload?url=${selectedQuality.link}&apikey=${prabathApi}`);
+
+                    // Set "uploading" reaction
+                    await conn.sendMessage(sender, { react: { text: '⏳', key: qualityMek.key } });
 
                     // Send the document
                     await conn.sendMessage(sender, {
@@ -95,6 +103,9 @@ Please reply with the quality number you want.
                         fileName: downloadLink.data.fileName,
                         caption: `Your movie "${movieDetails.mainDetails.maintitle}" in quality ${selectedQuality.quality} is ready!`
                     });
+
+                    // Set "successful" reaction
+                    await conn.sendMessage(sender, { react: { text: '✅', key: qualityMek.key } });
                 });
             }
         });
