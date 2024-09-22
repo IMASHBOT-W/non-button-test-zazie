@@ -26,6 +26,12 @@ cmd({
 
         // Get the first APK details
         const firstApp = data.data[0];
+        
+        // Check if the required properties exist
+        if (!firstApp || !firstApp.name || !firstApp.package || !firstApp.lastup || !firstApp.size || !firstApp.icon || !firstApp.dllink) {
+            return reply("❌ APK details are incomplete or missing.");
+        }
+
         const desc = `*Name:* ${firstApp.name}\n*Developer:* ${firstApp.package}\n*Last Update:* ${firstApp.lastup}\n*Size:* ${firstApp.size} MB`;
         
         // Send APK details with image       
